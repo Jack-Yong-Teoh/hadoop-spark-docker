@@ -1,0 +1,99 @@
+services:
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    platform: linux/amd64
+    container_name: namenode
+    restart: always
+    hostname: namenode
+    networks:
+      - hadoop_spark_network
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    environment:
+      - CLUSTER_NAME=hadoop-spark-cluster
+    env_file:
+      - ./hadoop.env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9870"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    platform: linux/amd64
+    container_name: datanode
+    restart: always
+    hostname: datanode
+    networks:
+      - hadoop_spark_network
+    volumes:
+      - hadoop_datanode:/hadoop/dfs/data
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+    env_file:
+      - ./hadoop.env
+    depends_on:
+      namenode:
+        condition: service_healthy
+
+  spark-master:
+    image: apache/spark:3.5.3
+    platform: linux/amd64
+    container_name: spark-master
+    restart: always
+    hostname: spark-master
+    networks:
+      - hadoop_spark_network
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+      - "4040:4040"
+    command:
+      [
+        "/opt/spark/bin/spark-class",
+        "org.apache.spark.deploy.master.Master",
+        "--host",
+        "spark-master",
+        "--port",
+        "7077",
+        "--webui-port",
+        "8080",
+      ]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  spark-worker:
+    image: apache/spark:3.5.3
+    platform: linux/amd64
+    container_name: spark-worker
+    restart: always
+    hostname: spark-worker
+    networks:
+      - hadoop_spark_network
+    ports:
+      - "8081:8081"
+    command:
+      [
+        "/opt/spark/bin/spark-class",
+        "org.apache.spark.deploy.worker.Worker",
+        "--webui-port",
+        "8081",
+        "spark://spark-master:7077",
+      ]
+    depends_on:
+      - spark-master
+
+volumes:
+  hadoop_namenode:
+  hadoop_datanode:
+
+networks:
+  hadoop_spark_network:
+    driver: bridge

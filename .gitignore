@@ -1,0 +1,18 @@
+# Docker
+.DS_Store
+.env.local
+
+# Volumes (created by docker)
+hadoop_namenode/
+hadoop_datanode/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+docker-compose.override.yml
